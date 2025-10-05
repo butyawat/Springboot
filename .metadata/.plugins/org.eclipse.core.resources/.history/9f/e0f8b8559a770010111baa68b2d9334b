@@ -1,0 +1,68 @@
+package com.example;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class URLController {
+
+    private final UrlService urlService;
+
+    @Autowired
+    public URLController(UrlService urlService) {
+        this.urlService = urlService;
+    }
+
+    @PostMapping("/api/shorten")
+    public ResponseEntity<Map<String, String>> shortenUrl(@RequestBody Map<String, String> request) {
+        String originalUrl = request.get("url");
+        String customKey = request.get("customKey");
+        
+        if (originalUrl == null || originalUrl.isBlank()) {
+            throw new IllegalArgumentException("URL is required");
+        }
+        
+        String shortKey = urlService.shortenUrl(originalUrl, customKey);
+        String shortUrl = "/" + shortKey;
+        return ResponseEntity.ok(Collections.singletonMap("shortUrl", shortUrl));
+    }
+
+    @GetMapping("/{shortKey}")
+    public ResponseEntity<Void> redirect(@PathVariable String shortKey) {
+        String originalUrl = urlService.getOriginalUrl(shortKey);
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header("Location", originalUrl)
+                .build();
+    }
+    
+    @GetMapping("/api/urls")
+    public ResponseEntity<List<Url>> getAllUrls() {
+        return ResponseEntity.ok(urlService.getAllUrls());
+    }
+    
+    @DeleteMapping("/api/urls/{id}")
+    public ResponseEntity<Void> deleteUrl(@PathVariable Long id) {
+        urlService.deleteUrl(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @ExceptionHandler({IllegalArgumentException.class, UrlNotFoundException.class})
+    public ResponseEntity<Map<String, String>> handleException(Exception ex) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", ex.getMessage());
+        return ResponseEntity.badRequest().body(error);
+    }
+}

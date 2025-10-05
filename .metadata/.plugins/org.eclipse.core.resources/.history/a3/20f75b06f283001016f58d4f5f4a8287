@@ -1,0 +1,143 @@
+// DOM Elements
+const urlInput = document.getElementById('urlInput');
+const shortenBtn = document.getElementById('shortenBtn');
+const resultDiv = document.getElementById('result');
+const shortUrlLink = document.getElementById('shortUrl');
+const copyBtn = document.getElementById('copyBtn');
+const errorDiv = document.getElementById('error');
+const spinner = document.getElementById('spinner');
+const customKeyCheck = document.getElementById('customKeyCheck');
+const customKeyContainer = document.getElementById('customKeyContainer');
+const customKeyInput = document.getElementById('customKeyInput');
+const shareBtn = document.getElementById('shareBtn');
+const baseUrlSpan = document.getElementById('baseUrl');
+
+// Event Listeners
+shortenBtn.addEventListener('click', shortenUrl);
+copyBtn.addEventListener('click', copyShortUrl);
+customKeyCheck.addEventListener('change', toggleCustomKey);
+shareBtn.addEventListener('click', shareShortUrl);
+
+// Toggle custom key input
+function toggleCustomKey() {
+    customKeyContainer.style.display = customKeyCheck.checked ? 'block' : 'none';
+}
+
+// Ensure URL has protocol
+function normalizeUrl(url) {
+    if (!url) return url;
+    if (!/^https?:\/\//i.test(url)) {
+        return 'https://' + url;
+    }
+    return url;
+}
+
+// Shorten URL
+async function shortenUrl() {
+    let url = urlInput.value.trim();
+    url = normalizeUrl(url);
+    const customKey = customKeyCheck.checked ? customKeyInput.value.trim() : null;
+    
+    if (!url) {
+        showError('Please enter a valid URL');
+        return;
+    }
+    
+    try {
+        showLoading(true);
+        hideError();
+        
+        const response = await fetch('/api/shorten', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                url,
+                customKey
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Construct full URL
+            const fullUrl = window.location.origin + data.shortUrl;
+            displayResult(fullUrl);
+        } else {
+            showError(data.error || 'Failed to shorten URL');
+        }
+    } catch (error) {
+        showError('Network error. Please try again.');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Display result
+function displayResult(shortUrl) {
+    shortUrlLink.textContent = shortUrl;
+    shortUrlLink.href = shortUrl;
+    resultDiv.classList.remove('d-none');
+}
+
+// Copy short URL to clipboard
+function copyShortUrl() {
+    navigator.clipboard.writeText(shortUrlLink.href)
+        .then(() => {
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                copyBtn.textContent = 'Copy';
+            }, 2000);
+        })
+        .catch(err => {
+            console.error('Copy failed:', err);
+            showError('Failed to copy URL');
+        });
+}
+
+// Share URL
+function shareShortUrl() {
+    if (navigator.share) {
+        navigator.share({
+            title: 'Shortened URL',
+            text: 'Check out this shortened URL:',
+            url: shortUrlLink.href
+        }).catch(console.error);
+    } else {
+        copyShortUrl();
+        alert('URL copied to clipboard!');
+    }
+}
+
+// Show/hide loading spinner
+function showLoading(show) {
+    spinner.classList.toggle('d-none', !show);
+    shortenBtn.disabled = show;
+}
+
+// Show error message
+function showError(message) {
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('d-none');
+}
+
+// Hide error message
+function hideError() {
+    errorDiv.classList.add('d-none');
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', () => {
+    // Set base URL
+    baseUrlSpan.textContent = `${window.location.origin}/`;
+    
+    // Check for URL parameters
+    const params = new URLSearchParams(window.location.search);
+    const createdUrl = params.get('created');
+    
+    if (createdUrl) {
+        urlInput.value = createdUrl;
+        shortenUrl();
+    }
+});

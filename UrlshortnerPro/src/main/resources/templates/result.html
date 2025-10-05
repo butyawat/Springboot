@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Short URL Created</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #654ea3, #da98b4);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: none;
+        }
+        .card-header {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .copy-box {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .btn-copy {
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="card shadow-lg">
+                    <div class="card-header text-center py-4 bg-transparent">
+                        <h2 class="mb-0">Short URL Created!</h2>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="mb-4">
+                            <p class="mb-1"><strong>Original URL:</strong></p>
+                            <div class="bg-white p-2 rounded" th:text="${originalUrl}"></div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <p class="mb-1"><strong>Short URL:</strong></p>
+                            <div class="input-group">
+                                <input type="text" class="form-control" 
+                                       th:value="${shortUrl}" 
+                                       id="shortUrl" 
+                                       readonly>
+                                <button class="btn btn-primary btn-copy" 
+                                        type="button"
+                                        onclick="copyToClipboard()">
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-3">
+                            <a th:href="${shortUrl}" 
+                               class="btn btn-success btn-lg"
+                               target="_blank">
+                                Visit Short URL
+                            </a>
+                            <a href="/" 
+                               class="btn btn-primary btn-lg">
+                                Create Another
+                            </a>
+                            <a href="/dashboard" 
+                               class="btn btn-outline-light btn-lg">
+                                View Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    function copyToClipboard() {
+        const copyText = document.getElementById("shortUrl");
+        copyText.select();
+        copyText.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(copyText.value);
+        
+        // Show feedback
+        const originalText = document.querySelector('.btn-copy').innerHTML;
+        document.querySelector('.btn-copy').innerHTML = '<i class="bi bi-check"></i> Copied!';
+        setTimeout(() => {
+            document.querySelector('.btn-copy').innerHTML = originalText;
+        }, 2000);
+    }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

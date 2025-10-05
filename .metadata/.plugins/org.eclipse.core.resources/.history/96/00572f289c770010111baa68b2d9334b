@@ -1,0 +1,123 @@
+package com.example;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class UrlService {
+
+    private static final String BASE62 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    private final UrlRepository urlRepository;
+    private final int shortKeyLength;
+    private final int expirationDays;
+
+    @Autowired
+    public UrlService(UrlRepository urlRepository,
+                      @Value("${app.short-key-length}") int shortKeyLength,
+                      @Value("${app.default-expiration-days}") int expirationDays) {
+        this.urlRepository = urlRepository;
+        this.shortKeyLength = shortKeyLength;
+        this.expirationDays = expirationDays;
+    }
+
+    @Transactional
+    public String shortenUrl(String originalUrl, String customKey) {
+        originalUrl = normalizeUrl(originalUrl);
+        
+        // Check if URL already exists
+        Optional<Url> existingUrl = urlRepository.findByOriginalUrl(originalUrl);
+        if (existingUrl.isPresent()) {
+            return existingUrl.get().getShortKey();
+        }
+
+        // Use custom key if provided
+        String shortKey;
+        if (customKey != null && !customKey.isBlank()) {
+            if (urlRepository.existsByShortKey(customKey)) {
+                throw new IllegalArgumentException("Custom short key already exists");
+            }
+            shortKey = customKey;
+        } else {
+            // Generate unique short key
+            do {
+                shortKey = generateRandomKey();
+            } while (urlRepository.existsByShortKey(shortKey));
+        }
+
+        // Set expiration date
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime expiresAt = now.plusDays(expirationDays);
+
+        // Create and save URL
+        Url url = new Url(originalUrl, shortKey, now, expiresAt);
+        urlRepository.save(url);
+        
+        System.out.println("✅ Shortened URL: " + originalUrl + " to " + shortKey);
+        return shortKey;
+    }
+
+    @Transactional
+    public String getOriginalUrl(String shortKey) {
+        System.out.println("🔍 Looking up URL for key: " + shortKey);
+        
+        Optional<Url> urlOptional = urlRepository.findByShortKey(shortKey);
+        if (urlOptional.isEmpty()) {
+            System.out.println("❌ URL not found for key: " + shortKey);
+            throw new UrlNotFoundException("URL not found");
+        }
+        
+        Url url = urlOptional.get();
+        
+        // Check expiration
+        if (url.getExpiresAt() != null && url.getExpiresAt().isBefore(LocalDateTime.now())) {
+            System.out.println("⌛ URL expired for key: " + shortKey);
+            throw new UrlNotFoundException("URL has expired");
+        }
+        
+        // Update stats
+        url.setClickCount(url.getClickCount() + 1);
+        url.setLastAccessed(LocalDateTime.now());
+        urlRepository.save(url);
+        
+        System.out.println("🔗 Redirecting to: " + url.getOriginalUrl());
+        return url.getOriginalUrl();
+    }
+    
+    public List<Url> getAllUrls() {
+        return urlRepository.findAll();
+    }
+    
+    public void deleteUrl(Long id) {
+        urlRepository.deleteById(id);
+    }
+
+    private String generateRandomKey() {
+        StringBuilder sb = new StringBuilder();
+        Random random = new Random();
+        for (int i = 0; i < shortKeyLength; i++) {
+            sb.append(BASE62.charAt(random.nextInt(BASE62.length())));
+        }
+        return sb.toString();
+    }
+    
+    private String normalizeUrl(String url) {
+        if (url == null) {
+            return null;
+        }
+        url = url.trim();
+        
+        // Add https:// if missing
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            url = "https://" + url;
+        }
+        
+        return url;
+    }
+}
