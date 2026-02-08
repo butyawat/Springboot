@@ -2,30 +2,26 @@ package com.example;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 @Service
 public class UrlService {
-    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    private static final int CODE_LENGTH = 6;
+
+    private static final String CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
     @Autowired
     private UrlRepository urlRepository;
 
-    public String shortenUrl(String originalUrl) {
-        // Check if URL already exists
-        Url existingUrl = urlRepository.findByOriginalUrl(originalUrl);
-        if (existingUrl != null) {
-            return existingUrl.getShortCode();
-        }
-        
+    public String shortenUrl(String originalUrl, User user) {
+
         String shortCode;
         do {
-            shortCode = generateShortCode();
+            shortCode = generateCode();
         } while (urlRepository.existsByShortCode(shortCode));
 
         Url url = new Url(originalUrl, shortCode);
+        url.setUser(user);
+
         urlRepository.save(url);
         return shortCode;
     }
@@ -39,17 +35,23 @@ public class UrlService {
         }
         return null;
     }
-    
-    
-    public List<Url> getAllUrls() {
-        return urlRepository.findAll();
+
+    public List<Url> getUrlsByUser(User user) {
+        return urlRepository.findByUser(user);
     }
 
-    private String generateShortCode() {
+    public void deleteUrl(Long id, User user) {
+        Url url = urlRepository.findById(id).orElse(null);
+        if (url != null && url.getUser().getId().equals(user.getId())) {
+            urlRepository.deleteById(id);
+        }
+    }
+
+    private String generateCode() {
+        Random r = new Random();
         StringBuilder sb = new StringBuilder();
-        Random random = new Random();
-        for (int i = 0; i < CODE_LENGTH; i++) {
-            sb.append(CHARACTERS.charAt(random.nextInt(CHARACTERS.length())));
+        for (int i = 0; i < 6; i++) {
+            sb.append(CHARS.charAt(r.nextInt(CHARS.length())));
         }
         return sb.toString();
     }
