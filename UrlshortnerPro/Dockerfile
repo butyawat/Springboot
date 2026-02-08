@@ -1,14 +1,17 @@
-FROM eclipse-temurin:17-jdk
+# Java 17 + Maven already installed
+FROM maven:3.9.6-eclipse-temurin-17
 
+# Working directory
 WORKDIR /app
 
+# Copy project files
 COPY . .
 
-RUN chmod +x mvnw
+# Build the Spring Boot application
+RUN mvn clean package -DskipTests
 
-# Build the project
-RUN ./mvnw clean package -DskipTests
-
+# Expose port
 EXPOSE 8080
 
+# Run the jar
 CMD ["java", "-jar", "target/*.jar"]
